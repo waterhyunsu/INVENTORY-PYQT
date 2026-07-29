@@ -4,8 +4,9 @@ from PyQt5.QtWidgets import (
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog
 )
 
-# 직접 만든 외부 모듈 불러오기 (db.py, item_dialog.py)
+# 직접 만든 외부 모듈 불러오기
 import db
+from login_dialog import LoginDialog
 from item_dialog import ItemDialog
 
 class DelisMainWindow(QMainWindow):
@@ -66,7 +67,7 @@ class DelisMainWindow(QMainWindow):
             QMessageBox.critical(self, "DB 오류", f"데이터 조회 실패:\n{str(e)}")
 
     def open_add_dialog(self):
-        """item_dialog 모듈과 db 모듈을 이용해 물자 추가"""
+        """신규 물자 등록"""
         dialog = ItemDialog(mode='add', parent=self)
         if dialog.exec_() == QDialog.Accepted:
             name, price_str, stock_str = dialog.get_data()
@@ -87,7 +88,7 @@ class DelisMainWindow(QMainWindow):
                 QMessageBox.critical(self, "DB 오류", f"등록 실패:\n{str(e)}")
 
     def open_update_dialog(self):
-        """item_dialog 모듈과 db 모듈을 이용해 물자 수정"""
+        """물자 수정"""
         selected_row = self.table.currentRow()
         if selected_row < 0:
             QMessageBox.warning(self, "선택 오류", "수정할 물자를 표에서 먼저 선택해주세요.")
@@ -118,7 +119,7 @@ class DelisMainWindow(QMainWindow):
                 QMessageBox.critical(self, "DB 오류", f"수정 실패:\n{str(e)}")
 
     def delete_item_action(self):
-        """db 모듈을 이용해 물자 삭제"""
+        """물자 삭제(소모/폐기)"""
         selected_row = self.table.currentRow()
         if selected_row < 0:
             QMessageBox.warning(self, "선택 오류", "소모/폐기 처리할 물자를 표에서 먼저 선택해주세요.")
@@ -144,6 +145,13 @@ class DelisMainWindow(QMainWindow):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    ex = DelisMainWindow()
-    ex.show()
-    sys.exit(app.exec_())
+
+    # 1. 로그인 창 먼저 실행
+    login = LoginDialog()
+    if login.exec_() == LoginDialog.Accepted:
+        # 2. 로그인 성공 시 메인 대시보드 창 오픈
+        main_window = DelisMainWindow()
+        main_window.show()
+        sys.exit(app.exec_())
+    else:
+        sys.exit(0)
