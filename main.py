@@ -25,7 +25,7 @@ class DelisMainWindow(QMainWindow):
         if self.user_id == '1234':
             self.statusBar().showMessage("[관리자 계정]으로 접속 중입니다.")
         else:
-            self.statusBar().showMessage(f"일반 사용자 계정 ({self.user_id}) 접속 중")
+            self.statusBar().showMessage(f"일반 사용자 ({self.user_id}) 접속 중")
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)

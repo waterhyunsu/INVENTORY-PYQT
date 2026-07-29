@@ -13,8 +13,8 @@ def process_excel_import(file_path):
         else:
             df = pd.read_excel(file_path)
 
-        # 필수 컬럼 검증
-        required_columns = ['품명', '조달단가', '보유수량']
+        # 필수 컬럼에 '재고번호 (NSN)' 추가
+        required_columns = ['재고번호 (NSN)', '품명', '조달단가', '보유수량']
         for col in required_columns:
             if col not in df.columns:
                 return False, f"엑셀 파일에 필수 열('{col}')이 존재하지 않습니다.\n양식을 확인해주세요."
@@ -22,10 +22,13 @@ def process_excel_import(file_path):
         # 데이터 가공 및 타입 변환
         item_list = []
         for _, row in df.iterrows():
+            # 엑셀의 한국어 컬럼명을 읽어와서 nsn, name, price, stock 추출
+            nsn = str(row['재고번호 (NSN)']).strip()
             name = str(row['품명']).strip()
             price = int(row['조달단가'])
             stock = int(row['보유수량'])
-            item_list.append((name, price, stock))
+            
+            item_list.append((nsn, name, price, stock))
 
         if not item_list:
             return False, "엑셀 파일에 등록할 데이터가 존재하지 않습니다."
