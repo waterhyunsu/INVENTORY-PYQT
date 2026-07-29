@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, 
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog, QMenu
 )
+from PyQt5.QtCore import Qt
 
 import db
 import service
@@ -21,7 +22,7 @@ class DelisMainWindow(QMainWindow):
         self.setWindowTitle('DELIS-Lite 국방 물자관리체계 (Main Dashboard)')
         self.setGeometry(300, 300, 800, 500)
 
-        # 로그인한 계정에 따른 상태바(상단/하단 상태 표시) 권한 분기 처리
+        # 로그인한 계정에 따른 상태바 권한 분기 처리
         if self.user_id == '1234':
             self.statusBar().showMessage("[관리자 계정]으로 접속 중입니다.")
         else:
@@ -59,38 +60,42 @@ class DelisMainWindow(QMainWindow):
         self.btn_delete.clicked.connect(self.delete_item_action)
         ctrl_layout.addWidget(self.btn_delete)
 
-        self.btn_load = QPushButton('🔄 새로고침')
-        self.btn_load.clicked.connect(self.load_data)
-        ctrl_layout.addWidget(self.btn_load)
-
         main_layout.addLayout(ctrl_layout)
 
-        # 재고 현황 표
+        # 재고 현황 표 (순번 열을 제거하고 4개 컬럼으로 설정)
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(['재고번호 (NSN)', '품명', '조달단가(원)', '보유수량'])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
-        main_layout.addWidget(self.table)
+        
+        # 정렬 기능 활성화
+        self.table.setSortingEnabled(False)
 
+        main_layout.addWidget(self.table)
         central_widget.setLayout(main_layout)
 
     def load_data(self):
-        """db 모듈을 호출하여 목록 조회"""
+        """db 모듈을 호출하여 목록 조회 및 콤마/중앙정렬 적용"""
         try:
+            self.table.setSortingEnabled(False)
+            
             result = db.get_all_items()
             self.table.setRowCount(len(result))
+            
             for row_idx, row_data in enumerate(result):
                 for col_idx, data in enumerate(row_data):
-                    # col_idx == 2는 '조달단가' 컬럼 (0:NSN, 1:품명, 2:단가, 3:수량)
-                    if col_idx == 2 and isinstance(data, (int, float)):
-                        formatted_data = f"{data:,}"  # 15000 -> "15,000"
-                    elif col_idx == 3 and isinstance(data, (int, float)):
-                        formatted_data = f"{data:,}"  # 수량(보유수량)에도 콤마를 넣고 싶다면 함께 적용 가능
+                    # 조달단가(col_idx 2) 및 보유수량(col_idx 3) 콤마 처리
+                    if col_idx in (2, 3) and isinstance(data, (int, float)):
+                        formatted_data = f"{data:,}"
                     else:
                         formatted_data = str(data)
 
                     item = QTableWidgetItem(formatted_data)
+                    item.setTextAlignment(Qt.AlignCenter)  # 모든 셀 중앙 정렬
                     self.table.setItem(row_idx, col_idx, item)
+
+            self.table.setSortingEnabled(True)
+
         except Exception as e:
             QMessageBox.critical(self, "DB 오류", f"데이터 조회 실패:\n{str(e)}")
 
@@ -153,10 +158,11 @@ class DelisMainWindow(QMainWindow):
             QMessageBox.warning(self, "선택 오류", "수정할 물자를 표에서 먼저 선택해주세요.")
             return
 
+        # 4개 컬럼 구조에 맞춘 인덱스 (0:NSN, 1:품명, 2:단가, 3:수량)
         nsn = self.table.item(selected_row, 0).text()
         name = self.table.item(selected_row, 1).text()
-        price = self.table.item(selected_row, 2).text()
-        stock = self.table.item(selected_row, 3).text()
+        price = self.table.item(selected_row, 2).text().replace(',', '')
+        stock = self.table.item(selected_row, 3).text().replace(',', '')
 
         dialog = ItemDialog(mode='update', item_data=(nsn, name, price, stock), parent=self)
         if dialog.exec_() == QDialog.Accepted:
@@ -186,7 +192,7 @@ class DelisMainWindow(QMainWindow):
 
         nsn = self.table.item(selected_row, 0).text()
         name = self.table.item(selected_row, 1).text()
-        current_stock = int(self.table.item(selected_row, 3).text())
+        current_stock = int(self.table.item(selected_row, 3).text().replace(',', ''))
 
         if current_stock <= 0:
             QMessageBox.warning(self, "소모 불가", f"'{name}' 물자의 보유 수량이 0입니다.")
@@ -213,7 +219,6 @@ if __name__ == '__main__':
 
     login = LoginDialog()
     if login.exec_() == LoginDialog.Accepted:
-        # 로그인 성공 시 저장된 user_id를 가져와서 메인 창에 전달
         current_user_id = login.user_id 
         
         main_window = DelisMainWindow(current_user_id)
