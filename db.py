@@ -76,3 +76,12 @@ def check_login(user_id, password):
         result = cursor.fetchone()
     conn.close()
     return result  # 일치하는 계정이 있으면 이름 반환, 없으면 None
+
+def insert_items_bulk(item_list):
+    """엑셀에서 읽어온 튜플 리스트를 받아 한 번에 DB에 등록"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        query = "INSERT INTO item (name, price, stock) VALUES (%s, %s, %s);"
+        cursor.executemany(query, item_list)
+        conn.commit()
+    conn.close()

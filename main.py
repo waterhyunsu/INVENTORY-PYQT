@@ -1,10 +1,11 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, 
-    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog
+    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog
 )
 
 import db
+import service  # [신규] 비즈니스 로직 모듈 불러오기
 from login_dialog import LoginDialog
 from item_dialog import ItemDialog
 
@@ -17,7 +18,7 @@ class DelisMainWindow(QMainWindow):
 
     def initUI(self):
         self.setWindowTitle('DELIS-Lite 국방 물자관리체계 (Main Dashboard)')
-        self.setGeometry(300, 300, 750, 500)
+        self.setGeometry(300, 300, 800, 500)
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -26,19 +27,23 @@ class DelisMainWindow(QMainWindow):
         # 제어 버튼 레이아웃
         ctrl_layout = QHBoxLayout()
 
-        self.btn_add = QPushButton('➕ 신규 물자 등록')
+        self.btn_add = QPushButton('➕ 신규 등록')
         self.btn_add.clicked.connect(self.open_add_dialog)
         ctrl_layout.addWidget(self.btn_add)
 
-        self.btn_update = QPushButton('✏️ 선택 물자 수정')
+        self.btn_excel = QPushButton('📂 엑셀 일괄 등록')
+        self.btn_excel.clicked.connect(self.excel_import_action)
+        ctrl_layout.addWidget(self.btn_excel)
+
+        self.btn_update = QPushButton('✏️ 선택 수정')
         self.btn_update.clicked.connect(self.open_update_dialog)
         ctrl_layout.addWidget(self.btn_update)
 
-        self.btn_delete = QPushButton('🗑️ 물자 소모 처리')
+        self.btn_delete = QPushButton('🗑️ 소모 처리')
         self.btn_delete.clicked.connect(self.delete_item_action)
         ctrl_layout.addWidget(self.btn_delete)
 
-        self.btn_load = QPushButton('🔄 현황 새로고침')
+        self.btn_load = QPushButton('🔄 새로고침')
         self.btn_load.clicked.connect(self.load_data)
         ctrl_layout.addWidget(self.btn_load)
 
@@ -85,6 +90,23 @@ class DelisMainWindow(QMainWindow):
                 self.load_data()
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", f"등록 실패:\n{str(e)}")
+
+    def excel_import_action(self):
+        """엑셀 파일 선택 및 service 모듈 위임"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self, "엑셀 파일 선택", "", "Excel Files (*.xlsx *.xls);;CSV Files (*.csv)"
+        )
+        if not file_path:
+            return
+
+        # service 모듈에 비즈니스 로직 위임
+        success, message = service.process_excel_import(file_path)
+        
+        if success:
+            QMessageBox.information(self, "성공", message)
+            self.load_data()
+        else:
+            QMessageBox.critical(self, "처리 실패", message)
 
     def open_update_dialog(self):
         """물자 수정"""
