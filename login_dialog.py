@@ -45,6 +45,7 @@ class LoginDialog(QDialog):
         user = db.check_login(user_id, password)
         if user:
             self.user_name = user[0]
-            self.accept()  # 로그인 성공 시 다이얼로그 닫고 승인
+            self.user_id = user_id  # 로그인 성공한 아이디를 객체 변수에 저장, 이후 메인 모듈에서 관리자계정 식별 
+            self.accept()  
         else:
             QMessageBox.critical(self, "로그인 실패", "아이디 또는 비밀번호가 올바르지 않습니다.")

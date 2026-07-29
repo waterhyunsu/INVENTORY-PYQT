@@ -11,14 +11,21 @@ from item_dialog import ItemDialog
 
 class DelisMainWindow(QMainWindow):
     """메인 대시보드 창"""
-    def __init__(self):
+    def __init__(self, user_id):  # 로그인한 user_id를 인자로 받음
         super().__init__()
+        self.user_id = user_id
         self.initUI()
         self.load_data()
 
     def initUI(self):
         self.setWindowTitle('DELIS-Lite 국방 물자관리체계 (Main Dashboard)')
         self.setGeometry(300, 300, 800, 500)
+
+        # 로그인한 계정에 따른 상태바(상단/하단 상태 표시) 권한 분기 처리
+        if self.user_id == '1234':
+            self.statusBar().showMessage("[관리자 계정]으로 접속 중입니다.")
+        else:
+            self.statusBar().showMessage(f"일반 사용자 계정 ({self.user_id}) 접속 중")
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -31,7 +38,7 @@ class DelisMainWindow(QMainWindow):
         self.btn_add.clicked.connect(self.open_add_dialog)
         ctrl_layout.addWidget(self.btn_add)
 
-        # [수정] "📂 등록/내보내기" 버튼 및 드롭다운 메뉴 설정
+        # 엑셀 등록/내보내기 드롭다운 메뉴 버튼
         self.btn_excel = QPushButton('📂 등록/내보내기')
         excel_menu = QMenu(self)
         
@@ -117,7 +124,7 @@ class DelisMainWindow(QMainWindow):
             QMessageBox.critical(self, "처리 실패", message)
 
     def excel_export_action(self):
-        """[신규] 현재 DB 데이터를 엑셀 파일로 저장하는 대화상자 호출 및 service 위임"""
+        """현재 DB 데이터를 엑셀 파일로 저장하는 대화상자 호출 및 service 위임"""
         file_path, _ = QFileDialog.getSaveFileName(
             self, "엑셀 파일 저장", "inventory_export.xlsx", "Excel Files (*.xlsx);;CSV Files (*.csv)"
         )
@@ -198,7 +205,10 @@ if __name__ == '__main__':
 
     login = LoginDialog()
     if login.exec_() == LoginDialog.Accepted:
-        main_window = DelisMainWindow()
+        # 로그인 성공 시 저장된 user_id를 가져와서 메인 창에 전달
+        current_user_id = login.user_id 
+        
+        main_window = DelisMainWindow(current_user_id)
         main_window.show()
         sys.exit(app.exec_())
     else:
