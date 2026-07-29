@@ -108,8 +108,8 @@ class DelisMainWindow(QMainWindow):
         """신규 물자 등록"""
         dialog = ItemDialog(mode='add', parent=self)
         if dialog.exec_() == QDialog.Accepted:
-            name, price_str, stock_str = dialog.get_data()
-            if not name or not price_str or not stock_str:
+            nsn, name, price_str, stock_str = dialog.get_data()  # 👈 4개로 받기
+            if not nsn or not name or not price_str or not stock_str:
                 QMessageBox.warning(self, "경고", "모든 항목을 입력해주세요.")
                 return
             try:
@@ -119,12 +119,12 @@ class DelisMainWindow(QMainWindow):
                 return
 
             try:
-                db.insert_item(name, price, stock)
+                db.insert_item(nsn, name, price, stock)  # 👈 db에 nsn도 함께 전달
                 QMessageBox.information(self, "성공", "신규 물자가 등록되었습니다.")
                 self.load_data()
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", f"등록 실패:\n{str(e)}")
-
+                
     def excel_import_action(self):
         """엑셀 파일 선택 및 service 모듈 위임 (등록)"""
         file_path, _ = QFileDialog.getOpenFileName(
@@ -218,7 +218,7 @@ class DelisMainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", str(e))
 
-#  숫자 데이터 , 적용하려고 문자열 형식으로 변환하니 오름차순 내림차순 시 비정상 작동하는걸 교정하기 위함
+#  숫자 데이터에 , 적용하려고 문자열 형식으로 변환하니 오름차순 내림차순 시 비정상 작동하는걸 교정하기 위함
 class NumericTableWidgetItem(QTableWidgetItem):
     """콤마가 포함된 숫자 문자열을 올바르게 정렬하기 위한 커스텀 아이템"""
     def __lt__(self, other):
