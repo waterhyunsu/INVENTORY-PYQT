@@ -90,7 +90,12 @@ class DelisMainWindow(QMainWindow):
                     else:
                         formatted_data = str(data)
 
-                    item = QTableWidgetItem(formatted_data)
+                    # 🌟 숫자 컬럼(2, 3번)은 정렬용 커스텀 아이템 적용, 그 외는 기본 아이템 적용
+                    if col_idx in (2, 3):
+                        item = NumericTableWidgetItem(formatted_data)
+                    else:
+                        item = QTableWidgetItem(formatted_data)
+                        
                     item.setTextAlignment(Qt.AlignCenter)  # 모든 셀 중앙 정렬
                     self.table.setItem(row_idx, col_idx, item)
 
@@ -212,6 +217,19 @@ class DelisMainWindow(QMainWindow):
                 self.load_data()
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", str(e))
+
+#  숫자 데이터 , 적용하려고 문자열 형식으로 변환하니 오름차순 내림차순 시 비정상 작동하는걸 교정하기 위함
+class NumericTableWidgetItem(QTableWidgetItem):
+    """콤마가 포함된 숫자 문자열을 올바르게 정렬하기 위한 커스텀 아이템"""
+    def __lt__(self, other):
+        try:
+            # 콤마 제거 후 숫자로 변환하여 대소 비교
+            self_val = float(self.text().replace(',', ''))
+            other_val = float(other.text().replace(',', ''))
+            return self_val < other_val
+        except ValueError:
+            # 숫자로 변환할 수 없는 경우 기본 문자열 비교 수행
+            return super().__lt__(other)
 
 
 if __name__ == '__main__':
