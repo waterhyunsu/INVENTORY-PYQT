@@ -1,11 +1,11 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, 
-    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog
+    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog, QMenu
 )
 
 import db
-import service  # [신규] 비즈니스 로직 모듈 불러오기
+import service
 from login_dialog import LoginDialog
 from item_dialog import ItemDialog
 
@@ -31,8 +31,17 @@ class DelisMainWindow(QMainWindow):
         self.btn_add.clicked.connect(self.open_add_dialog)
         ctrl_layout.addWidget(self.btn_add)
 
-        self.btn_excel = QPushButton('📂 엑셀 일괄 등록')
-        self.btn_excel.clicked.connect(self.excel_import_action)
+        # [수정] "📂 등록/내보내기" 버튼 및 드롭다운 메뉴 설정
+        self.btn_excel = QPushButton('📂 등록/내보내기')
+        excel_menu = QMenu(self)
+        
+        action_import = excel_menu.addAction('📥 엑셀 대량 등록 (Import)')
+        action_export = excel_menu.addAction('📤 엑셀 내보내기 (Export)')
+        
+        action_import.triggered.connect(self.excel_import_action)
+        action_export.triggered.connect(self.excel_export_action)
+        
+        self.btn_excel.setMenu(excel_menu)
         ctrl_layout.addWidget(self.btn_excel)
 
         self.btn_update = QPushButton('✏️ 선택 수정')
@@ -92,14 +101,13 @@ class DelisMainWindow(QMainWindow):
                 QMessageBox.critical(self, "DB 오류", f"등록 실패:\n{str(e)}")
 
     def excel_import_action(self):
-        """엑셀 파일 선택 및 service 모듈 위임"""
+        """엑셀 파일 선택 및 service 모듈 위임 (등록)"""
         file_path, _ = QFileDialog.getOpenFileName(
             self, "엑셀 파일 선택", "", "Excel Files (*.xlsx *.xls);;CSV Files (*.csv)"
         )
         if not file_path:
             return
 
-        # service 모듈에 비즈니스 로직 위임
         success, message = service.process_excel_import(file_path)
         
         if success:
@@ -107,6 +115,21 @@ class DelisMainWindow(QMainWindow):
             self.load_data()
         else:
             QMessageBox.critical(self, "처리 실패", message)
+
+    def excel_export_action(self):
+        """[신규] 현재 DB 데이터를 엑셀 파일로 저장하는 대화상자 호출 및 service 위임"""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "엑셀 파일 저장", "inventory_export.xlsx", "Excel Files (*.xlsx);;CSV Files (*.csv)"
+        )
+        if not file_path:
+            return
+
+        success, message = service.export_excel(file_path)
+        
+        if success:
+            QMessageBox.information(self, "성공", message)
+        else:
+            QMessageBox.critical(self, "내보내기 실패", message)
 
     def open_update_dialog(self):
         """물자 수정"""
