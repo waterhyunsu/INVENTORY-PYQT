@@ -68,7 +68,7 @@ class DelisMainWindow(QMainWindow):
         # 재고 현황 표
         self.table = QTableWidget()
         self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(['재고번호 (NSN)', '품명', '조달단가', '보유수량'])
+        self.table.setHorizontalHeaderLabels(['재고번호 (NSN)', '품명', '조달단가(원)', '보유수량'])
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         main_layout.addWidget(self.table)
 
@@ -81,7 +81,15 @@ class DelisMainWindow(QMainWindow):
             self.table.setRowCount(len(result))
             for row_idx, row_data in enumerate(result):
                 for col_idx, data in enumerate(row_data):
-                    item = QTableWidgetItem(str(data))
+                    # col_idx == 2는 '조달단가' 컬럼 (0:NSN, 1:품명, 2:단가, 3:수량)
+                    if col_idx == 2 and isinstance(data, (int, float)):
+                        formatted_data = f"{data:,}"  # 15000 -> "15,000"
+                    elif col_idx == 3 and isinstance(data, (int, float)):
+                        formatted_data = f"{data:,}"  # 수량(보유수량)에도 콤마를 넣고 싶다면 함께 적용 가능
+                    else:
+                        formatted_data = str(data)
+
+                    item = QTableWidgetItem(formatted_data)
                     self.table.setItem(row_idx, col_idx, item)
         except Exception as e:
             QMessageBox.critical(self, "DB 오류", f"데이터 조회 실패:\n{str(e)}")
