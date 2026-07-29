@@ -1,10 +1,9 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, 
-    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog
+    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog
 )
 
-# 직접 만든 외부 모듈 불러오기
 import db
 from login_dialog import LoginDialog
 from item_dialog import ItemDialog
@@ -35,7 +34,7 @@ class DelisMainWindow(QMainWindow):
         self.btn_update.clicked.connect(self.open_update_dialog)
         ctrl_layout.addWidget(self.btn_update)
 
-        self.btn_delete = QPushButton('🗑️ 소모/폐기 처리')
+        self.btn_delete = QPushButton('🗑️ 물자 소모 처리')
         self.btn_delete.clicked.connect(self.delete_item_action)
         ctrl_layout.addWidget(self.btn_delete)
 
@@ -119,37 +118,41 @@ class DelisMainWindow(QMainWindow):
                 QMessageBox.critical(self, "DB 오류", f"수정 실패:\n{str(e)}")
 
     def delete_item_action(self):
-        """물자 삭제(소모/폐기)"""
+        """선택한 물자의 특정 수량 소모 처리"""
         selected_row = self.table.currentRow()
         if selected_row < 0:
-            QMessageBox.warning(self, "선택 오류", "소모/폐기 처리할 물자를 표에서 먼저 선택해주세요.")
+            QMessageBox.warning(self, "선택 오류", "소모 처리할 물자를 표에서 먼저 선택해주세요.")
             return
 
         nsn = self.table.item(selected_row, 0).text()
         name = self.table.item(selected_row, 1).text()
+        current_stock = int(self.table.item(selected_row, 3).text())
 
-        reply = QMessageBox.question(
-            self, '소모/폐기 확인', 
-            f"'{name}' (재고번호: {nsn}) 물자를 소모/폐기 처리(삭제)하시겠습니까?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+        if current_stock <= 0:
+            QMessageBox.warning(self, "소모 불가", f"'{name}' 물자의 보유 수량이 0입니다.")
+            return
+
+        qty, ok = QInputDialog.getInt(
+            self, 
+            "물자 소모 처리", 
+            f"'{name}' (현재고: {current_stock} EA)\n소모할 수량을 입력하세요:", 
+            1, 1, current_stock, 1
         )
 
-        if reply == QMessageBox.Yes:
+        if ok:
             try:
-                db.delete_item(nsn)
-                QMessageBox.information(self, "처리 완료", "해당 물자가 소모/불용 처리되었습니다.")
+                db.consume_stock(nsn, qty)
+                QMessageBox.information(self, "처리 완료", f"'{name}' {qty} EA가 소모 처리되었습니다.")
                 self.load_data()
             except Exception as e:
-                QMessageBox.critical(self, "DB 오류", f"처리 실패:\n{str(e)}")
+                QMessageBox.critical(self, "DB 오류", str(e))
 
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
 
-    # 1. 로그인 창 먼저 실행
     login = LoginDialog()
     if login.exec_() == LoginDialog.Accepted:
-        # 2. 로그인 성공 시 메인 대시보드 창 오픈
         main_window = DelisMainWindow()
         main_window.show()
         sys.exit(app.exec_())

@@ -45,12 +45,25 @@ def update_item(nsn, name, price, stock):
         conn.commit()
     conn.close()
 
-def delete_item(nsn):
-    """물자 삭제/불용 처리 (Delete)"""
+def consume_stock(nsn, consume_qty):
+    """특정 수량만큼 재고 차감 (소모 처리)"""
     conn = get_connection()
     with conn.cursor() as cursor:
-        query = "DELETE FROM item WHERE nsn = %s;"
-        cursor.execute(query, (nsn,))
+        # 1. 현재고 확인 (초과 소모 방지)
+        cursor.execute("SELECT stock FROM item WHERE nsn = %s;", (nsn,))
+        row = cursor.fetchone()
+        if not row:
+            conn.close()
+            raise Exception("해당 물자를 찾을 수 없습니다.")
+        
+        current_stock = row[0]
+        if current_stock < consume_qty:
+            conn.close()
+            raise Exception(f"현재 보유 수량({current_stock} EA)보다 많은 수량을 소모할 수 없습니다.")
+        
+        # 2. 재고 차감 쿼리 실행 (UPDATE)
+        query = "UPDATE item SET stock = stock - %s WHERE nsn = %s;"
+        cursor.execute(query, (consume_qty, nsn))
         conn.commit()
     conn.close()
 
