@@ -48,14 +48,22 @@ class ItemDialog(QDialog):
             self.input_price.setText(str(self.item_data[2]))
             self.input_stock.setText(str(self.item_data[3]))
 
-        # 저장/취소 버튼
+       # 저장/취소 버튼
         btn_layout = QHBoxLayout()
         self.btn_save = QPushButton('저장')
         self.btn_save.clicked.connect(self.accept)
+        
         self.btn_cancel = QPushButton('취소')
         self.btn_cancel.clicked.connect(self.reject)
         
         btn_layout.addWidget(self.btn_save)
+
+        # 수정(update) 모드일 때만 '삭제' 버튼을 생성하여 추가
+        if self.mode == 'update':
+            self.btn_delete = QPushButton('삭제')
+            self.btn_delete.setStyleSheet("background-color: #ffcccc; color: red;")  # 시각적 구분을 위한 스타일 (선택사항)
+            btn_layout.addWidget(self.btn_delete)
+
         btn_layout.addWidget(self.btn_cancel)
         layout.addLayout(btn_layout)
 

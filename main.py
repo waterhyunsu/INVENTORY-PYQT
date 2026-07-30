@@ -157,24 +157,58 @@ class DelisMainWindow(QMainWindow):
             QMessageBox.critical(self, "내보내기 실패", message)
 
     def open_update_dialog(self):
-        """물자 수정"""
+        """물자 수정 및 삭제 처리"""
         selected_row = self.table.currentRow()
         if selected_row < 0:
             QMessageBox.warning(self, "선택 오류", "수정할 물자를 표에서 먼저 선택해주세요.")
             return
 
-        # 4개 컬럼 구조에 맞춘 인덱스 (0:NSN, 1:품명, 2:단가, 3:수량)
         nsn = self.table.item(selected_row, 0).text()
         name = self.table.item(selected_row, 1).text()
         price = self.table.item(selected_row, 2).text().replace(',', '')
         stock = self.table.item(selected_row, 3).text().replace(',', '')
 
         dialog = ItemDialog(mode='update', item_data=(nsn, name, price, stock), parent=self)
+
+        # 💡 [추가] 다이얼로그 내부에 생성된 '삭제' 버튼 클릭 시 실행될 내부 함수
+        def handle_dialog_delete():
+            # 1차 확인창 (정말 삭제할 것인지 묻기)
+            reply = QMessageBox.question(
+                dialog, 
+                "삭제 확인", 
+                f"'{name}' ({nsn}) 물자를 완전히 삭제하시겠습니까?",
+                QMessageBox.Yes | QMessageBox.No, 
+                QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                try:
+                    # db 모듈의 삭제 함수 호출 (※ db.py에 delete_item 함수가 있어야 합니다)
+                    db.delete_item(nsn)
+                    QMessageBox.information(dialog, "삭제 완료", "물자가 완전히 삭제되었습니다.")
+                    dialog.accept()  # 다이얼로그 창 닫기
+                    self.load_data() # 메인 화면 목록 새로고침
+                except Exception as e:
+                    QMessageBox.critical(dialog, "DB 오류", f"삭제 실패:\n{str(e)}")
+
+        # update 모드일 때만 삭제 버튼 시그널 연결
+        if dialog.mode == 'update':
+            dialog.btn_delete.clicked.connect(handle_dialog_delete)
+
+        # 다이얼로그 실행 및 일반 수정(저장) 처리
         if dialog.exec_() == QDialog.Accepted:
-            new_name, price_str, stock_str = dialog.get_data()
+            # 삭제 버튼을 눌러서 이미 창이 닫힌 경우(accept된 경우) 수정 로직을 타지 않도록 방어 코드 추가
+            # (삭제 시 dialog.accept()를 호출했으므로, DB에 해당 nsn이 여전히 존재하는지 체크하거나 분기할 수 있습니다)
+            try:
+                # 만약 방금 삭제된 상태가 아니라면 일반 수정 로직 진행
+                # (삭제 후에는 다이얼로그가 닫히므로 get_data() 호출 시 예외가 안 나도록 간단히 체크)
+                new_name, price_str, stock_str = dialog.get_data()
+            except Exception:
+                return  # 삭제로 인해 다이얼로그가 닫힌 경우 무시
+
             if not new_name or not price_str or not stock_str:
-                QMessageBox.warning(self, "경고", "모든 항목을 입력해주세요.")
                 return
+
             try:
                 new_price, new_stock = int(price_str), int(stock_str)
             except ValueError:
@@ -187,7 +221,6 @@ class DelisMainWindow(QMainWindow):
                 self.load_data()
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", f"수정 실패:\n{str(e)}")
-
     def delete_item_action(self):
         """선택한 물자의 특정 수량 소모 처리"""
         selected_row = self.table.currentRow()

@@ -86,3 +86,12 @@ def insert_items_bulk(item_list):
         cursor.executemany(query, item_list)
         conn.commit()
     conn.close()
+
+def delete_item(nsn):
+    """지정한 NSN에 해당하는 물자 삭제"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        query = "DELETE FROM item WHERE nsn = %s;"
+        cursor.execute(query, (nsn,))
+        conn.commit()
+    conn.close()
