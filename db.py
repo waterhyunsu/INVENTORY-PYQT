@@ -37,12 +37,16 @@ def insert_item(name, price, stock):
     conn.close()
 
 def update_item(nsn, name, price, stock):
-    """물자 정보 수정 (Update)"""
     conn = get_connection()
-    with conn.cursor() as cursor:
-        query = "UPDATE item SET name = %s, price = %s, stock = %s WHERE nsn = %s;"
-        cursor.execute(query, (name, price, stock, nsn))
-        conn.commit()
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        UPDATE items 
+        SET name = ?, price = ?, stock = ? 
+        WHERE nsn = ?
+    """, (name, price, stock, nsn)) # 👈 전달하는 값도 정확히 4개(name, price, stock, nsn)여야 합니다.
+    
+    conn.commit()
     conn.close()
 
 def consume_stock(nsn, consume_qty):

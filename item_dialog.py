@@ -16,11 +16,11 @@ class ItemDialog(QDialog):
         else:
             self.setWindowTitle('물자 제원 및 수량 수정')
             
-        self.setGeometry(400, 400, 350, 320)  # 필드가 늘어나 창 높이 조절
+        self.setGeometry(400, 400, 350, 350)  # 안내 레이블 공간을 위해 높이 살짝 조절
 
         layout = QVBoxLayout()
 
-        # 1. 재고번호(NSN) 입력 필드 추가
+        # 1. 재고번호(NSN) 입력 필드
         layout.addWidget(QLabel('재고번호 (NSN):'))
         self.input_nsn = QLineEdit()
         layout.addWidget(self.input_nsn)
@@ -35,20 +35,28 @@ class ItemDialog(QDialog):
         self.input_price = QLineEdit()
         layout.addWidget(self.input_price)
 
-        # 4. 보유수량 입력 필드
-        layout.addWidget(QLabel('보유수량(EA):'))
+        # 4. 보유수량 입력 필드 (수정 모드 시 수정 불가 명시)
+        stock_label_text = '보유수량(EA):'
+        if self.mode == 'update':
+            stock_label_text += ' (⚠️ 수량 직접 수정 불가)'
+        layout.addWidget(QLabel(stock_label_text))
+        
         self.input_stock = QLineEdit()
         layout.addWidget(self.input_stock)
 
-        # 수정 모드일 때 데이터 자동 입력 및 NSN 수정 불가 처리
+        # 모드별 데이터 처리 및 읽기 전용 설정
         if self.mode == 'update' and self.item_data:
             self.input_nsn.setText(str(self.item_data[0]))
-            self.input_nsn.setReadOnly(True)  # 기본키(Primary Key)인 NSN은 수정 불가
+            # 요청사항: 수정 모드에서도 재고번호, 품명, 단가는 수정 가능하도록 허용
             self.input_name.setText(str(self.item_data[1]))
             self.input_price.setText(str(self.item_data[2]))
+            
+            # 보유수량은 수정 불가 처리 및 시각적 안내 (회색 배경)
             self.input_stock.setText(str(self.item_data[3]))
+            self.input_stock.setReadOnly(True)
+            self.input_stock.setStyleSheet("background-color: #f0f0f0; color: #666666;")
 
-       # 저장/취소 버튼
+        # 저장/취소 버튼
         btn_layout = QHBoxLayout()
         self.btn_save = QPushButton('저장')
         self.btn_save.clicked.connect(self.accept)
@@ -58,10 +66,10 @@ class ItemDialog(QDialog):
         
         btn_layout.addWidget(self.btn_save)
 
-        # 수정(update) 모드일 때만 '삭제' 버튼을 생성하여 추가
+        # 수정(update) 모드일 때만 '삭제' 버튼 추가
         if self.mode == 'update':
             self.btn_delete = QPushButton('삭제')
-            self.btn_delete.setStyleSheet("background-color: #ffcccc; color: red;")  # 시각적 구분을 위한 스타일 (선택사항)
+            self.btn_delete.setStyleSheet("background-color: #ffcccc; color: red;")
             btn_layout.addWidget(self.btn_delete)
 
         btn_layout.addWidget(self.btn_cancel)
