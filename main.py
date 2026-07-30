@@ -1,7 +1,8 @@
 import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, 
-    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog, QMenu
+    QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog, QMenu,
+    QHeaderView 
 )
 from PyQt5.QtCore import Qt
 
@@ -75,7 +76,7 @@ class DelisMainWindow(QMainWindow):
         central_widget.setLayout(main_layout)
 
     def load_data(self):
-        """db 모듈을 호출하여 목록 조회 및 콤마/중앙정렬 적용"""
+        """db 모듈을 호출하여 목록 조회 및 컬럼별 맞춤 정렬 적용"""
         try:
             self.table.setSortingEnabled(False)
             
@@ -84,22 +85,32 @@ class DelisMainWindow(QMainWindow):
             
             for row_idx, row_data in enumerate(result):
                 for col_idx, data in enumerate(row_data):
-                    # 조달단가(col_idx 2) 및 보유수량(col_idx 3) 콤마 처리
                     if col_idx in (2, 3) and isinstance(data, (int, float)):
                         formatted_data = f"{data:,}"
                     else:
                         formatted_data = str(data)
 
-                    # 🌟 숫자 컬럼(2, 3번)은 정렬용 커스텀 아이템 적용, 그 외는 기본 아이템 적용
                     if col_idx in (2, 3):
                         item = NumericTableWidgetItem(formatted_data)
                     else:
                         item = QTableWidgetItem(formatted_data)
                         
-                    item.setTextAlignment(Qt.AlignCenter)  # 모든 셀 중앙 정렬
+                    # 💡 [핵심 수정] 열별로 정렬 방향 다르게 지정
+                    if col_idx == 1:  # 1번 열('품명')은 길기 때문에 '왼쪽 정렬' + 약간의 여백 느낌
+                        item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                    else:             # 재고번호(0), 단가(2), 수량(3)은 '중앙 정렬'
+                        item.setTextAlignment(Qt.AlignCenter)
+
                     self.table.setItem(row_idx, col_idx, item)
 
             self.table.setSortingEnabled(True)
+
+            # 💡 [컬럼 너비 비율 재조절]
+            header = self.table.horizontalHeader()
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents) # 재고번호
+            header.setSectionResizeMode(1, QHeaderView.Stretch)          # 품명 (남은 공간 다 차지)
+            header.setSectionResizeMode(2, QHeaderView.ResizeToContents) # 조달단가
+            header.setSectionResizeMode(3, QHeaderView.ResizeToContents) # 보유수량
 
         except Exception as e:
             QMessageBox.critical(self, "DB 오류", f"데이터 조회 실패:\n{str(e)}")
