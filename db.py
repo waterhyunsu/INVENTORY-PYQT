@@ -95,3 +95,20 @@ def delete_item(nsn):
         cursor.execute(query, (nsn,))
         conn.commit()
     conn.close()
+
+def search_items(nsn_keyword, name_keyword):
+    """재고번호 또는 품명 키워드(LIKE 검색)로 물자 조회"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        query = """
+            SELECT nsn, name, price, stock FROM item 
+            WHERE (%s = '' OR nsn LIKE %s) 
+              AND (%s = '' OR name LIKE %s);
+        """
+        nsn_param = f"%{nsn_keyword}%"
+        name_param = f"%{name_keyword}%"
+        
+        cursor.execute(query, (nsn_keyword, nsn_param, name_keyword, name_param))
+        result = cursor.fetchall()
+    conn.close()
+    return result

@@ -2,7 +2,7 @@ import sys
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QTableWidget, QTableWidgetItem, 
     QVBoxLayout, QHBoxLayout, QWidget, QPushButton, QMessageBox, QDialog, QInputDialog, QFileDialog, QMenu,
-    QHeaderView 
+    QHeaderView, QLabel, QLineEdit
 )
 from PyQt5.QtCore import Qt
 
@@ -10,6 +10,63 @@ import db
 import service
 from login_dialog import LoginDialog
 from item_dialog import ItemDialog
+
+# -------------------------------------------------------------------------
+class NumericTableWidgetItem(QTableWidgetItem):
+    """콤마가 포함된 숫자 문자열을 올바르게 정렬하기 위한 커스텀 아이템"""
+    def __lt__(self, other):
+        try:
+            self_val = float(self.text().replace(',', ''))
+            other_val = float(other.text().replace(',', ''))
+            return self_val < other_val
+        except ValueError:
+            return super().__lt__(other)
+
+
+class SearchDialog(QDialog):
+    """재고번호 또는 품명으로 검색하기 위한 입력 창"""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle('물자 검색')
+        self.resize(300, 150)
+        
+        layout = QVBoxLayout()
+        
+        # 안내 문구
+        layout.addWidget(QLabel("재고번호 또는 품명을 입력하세요"))
+
+        # 입력 필드 레이아웃
+        form_layout = QHBoxLayout()
+        self.input_nsn = QLineEdit()
+        self.input_nsn.setPlaceholderText("재고번호 일부/전체")
+        form_layout.addWidget(QLabel("NSN:"))
+        form_layout.addWidget(self.input_nsn)
+        layout.addLayout(form_layout)
+
+        name_layout = QHBoxLayout()
+        self.input_name = QLineEdit()
+        self.input_name.setPlaceholderText("품명 일부/전체")
+        name_layout.addWidget(QLabel("품명:"))
+        name_layout.addWidget(self.input_name)
+        layout.addLayout(name_layout)
+
+        # 확인/취소 버튼
+        btn_layout = QHBoxLayout()
+        self.btn_ok = QPushButton('검색 실행')
+        self.btn_cancel = QPushButton('취소')
+        
+        self.btn_ok.clicked.connect(self.accept)
+        self.btn_cancel.clicked.connect(self.reject)
+        
+        btn_layout.addWidget(self.btn_ok)
+        btn_layout.addWidget(self.btn_cancel)
+        layout.addLayout(btn_layout)
+
+        self.setLayout(layout)
+
+    def get_search_filters(self):
+        return self.input_nsn.text().strip(), self.input_name.text().strip()
+
 
 class DelisMainWindow(QMainWindow):
     """메인 대시보드 창"""
@@ -33,12 +90,32 @@ class DelisMainWindow(QMainWindow):
         self.setCentralWidget(central_widget)
         main_layout = QVBoxLayout()
 
-        # 제어 버튼 레이아웃
-        ctrl_layout = QHBoxLayout()
+        # -------------------------------------------------------------------------
+        # 최상단 제어 버튼 레이아웃 (수직 2단 구조)
+        # -------------------------------------------------------------------------
+        ctrl_layout = QVBoxLayout()
+
+        # [1단] 검색 및 전체 목록 버튼 (가로로 길게 한 줄 채우기)
+        search_layout = QHBoxLayout()
+        
+        self.btn_search = QPushButton('🔍 검색')
+        self.btn_search.clicked.connect(self.open_search_dialog)
+        self.btn_search.setFixedHeight(35)
+        
+        self.btn_reset = QPushButton('🔄 전체')
+        self.btn_reset.clicked.connect(self.load_data)
+        self.btn_reset.setFixedHeight(35)
+        
+        search_layout.addWidget(self.btn_search, 9)
+        search_layout.addWidget(self.btn_reset, 1)
+        ctrl_layout.addLayout(search_layout)
+
+        # [2단] 기존 4가지 제어 버튼 레이아웃 (가로 배치)
+        action_layout = QHBoxLayout()
 
         self.btn_add = QPushButton('➕ 신규 등록')
         self.btn_add.clicked.connect(self.open_add_dialog)
-        ctrl_layout.addWidget(self.btn_add)
+        action_layout.addWidget(self.btn_add)
 
         # 엑셀 등록/내보내기 드롭다운 메뉴 버튼
         self.btn_excel = QPushButton('📂 등록/내보내기')
@@ -51,15 +128,18 @@ class DelisMainWindow(QMainWindow):
         action_export.triggered.connect(self.excel_export_action)
         
         self.btn_excel.setMenu(excel_menu)
-        ctrl_layout.addWidget(self.btn_excel)
+        action_layout.addWidget(self.btn_excel)
 
-        self.btn_update = QPushButton('✏️ 선택 수정')
+        self.btn_update = QPushButton('✏️ 선택 수정 및 삭제')
         self.btn_update.clicked.connect(self.open_update_dialog)
-        ctrl_layout.addWidget(self.btn_update)
+        action_layout.addWidget(self.btn_update)
 
         self.btn_delete = QPushButton('🗑️ 소모 처리')
         self.btn_delete.clicked.connect(self.delete_item_action)
-        ctrl_layout.addWidget(self.btn_delete)
+        action_layout.addWidget(self.btn_delete)
+
+        ctrl_layout.addLayout(action_layout)
+        # -------------------------------------------------------------------------
 
         main_layout.addLayout(ctrl_layout)
 
@@ -95,8 +175,8 @@ class DelisMainWindow(QMainWindow):
                     else:
                         item = QTableWidgetItem(formatted_data)
                         
-                    # 💡 [핵심 수정] 열별로 정렬 방향 다르게 지정
-                    if col_idx == 1:  # 1번 열('품명')은 길기 때문에 '왼쪽 정렬' + 약간의 여백 느낌
+                    # 열별로 정렬 방향 다르게 지정
+                    if col_idx == 1:  # 1번 열('품명')은 '왼쪽 정렬'
                         item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                     else:             # 재고번호(0), 단가(2), 수량(3)은 '중앙 정렬'
                         item.setTextAlignment(Qt.AlignCenter)
@@ -105,21 +185,76 @@ class DelisMainWindow(QMainWindow):
 
             self.table.setSortingEnabled(True)
 
-            # 💡 [컬럼 너비 비율 재조절]
+            # 컬럼 너비 비율 조절
             header = self.table.horizontalHeader()
             header.setSectionResizeMode(0, QHeaderView.ResizeToContents) # 재고번호
             header.setSectionResizeMode(1, QHeaderView.Stretch)          # 품명 (남은 공간 다 차지)
             header.setSectionResizeMode(2, QHeaderView.ResizeToContents) # 조달단가
             header.setSectionResizeMode(3, QHeaderView.ResizeToContents) # 보유수량
 
+            total_count = len(result)
+            if self.user_id == '1234':
+                self.statusBar().showMessage(f"[관리자 계정]으로 접속 중입니다. | 전체 조회된 물자: {total_count}건")
+            else:
+                self.statusBar().showMessage(f"일반 사용자 ({self.user_id}) 접속 중 | 전체 조회된 물자: {total_count}건")
+
         except Exception as e:
             QMessageBox.critical(self, "DB 오류", f"데이터 조회 실패:\n{str(e)}")
+
+
+    def open_search_dialog(self):
+        """검색 창을 띄우고 조건에 맞는 데이터를 조회하여 테이블에 표시"""
+        dialog = SearchDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            nsn_keyword, name_keyword = dialog.get_search_filters()
+            
+            if not nsn_keyword and not name_keyword:
+                QMessageBox.warning(self, "경고", "검색어를 최소한 하나 이상 입력해주세요.")
+                return
+
+            try:
+                result = db.search_items(nsn_keyword, name_keyword)
+                
+                self.table.setSortingEnabled(False)
+                self.table.setRowCount(len(result))
+                
+                for row_idx, row_data in enumerate(result):
+                    for col_idx, data in enumerate(row_data):
+                        if col_idx in (2, 3) and isinstance(data, (int, float)):
+                            formatted_data = f"{data:,}"
+                        else:
+                            formatted_data = str(data)
+
+                        if col_idx in (2, 3):
+                            item = NumericTableWidgetItem(formatted_data)
+                        else:
+                            item = QTableWidgetItem(formatted_data)
+                            
+                        if col_idx == 1:
+                            item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                        else:
+                            item.setTextAlignment(Qt.AlignCenter)
+
+                        self.table.setItem(row_idx, col_idx, item)
+
+                self.table.setSortingEnabled(True)
+
+                header = self.table.horizontalHeader()
+                header.setSectionResizeMode(0, QHeaderView.ResizeToContents)
+                header.setSectionResizeMode(1, QHeaderView.Stretch)
+                header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
+                header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
+
+                self.statusBar().showMessage(f"검색 완료: 총 {len(result)}건이 조회되었습니다.")
+
+            except Exception as e:
+                QMessageBox.critical(self, "DB 오류", f"검색 실패:\n{str(e)}")
 
     def open_add_dialog(self):
         """신규 물자 등록"""
         dialog = ItemDialog(mode='add', parent=self)
         if dialog.exec_() == QDialog.Accepted:
-            nsn, name, price_str, stock_str = dialog.get_data()  # 👈 4개로 받기
+            nsn, name, price_str, stock_str = dialog.get_data()
             if not nsn or not name or not price_str or not stock_str:
                 QMessageBox.warning(self, "경고", "모든 항목을 입력해주세요.")
                 return
@@ -130,7 +265,7 @@ class DelisMainWindow(QMainWindow):
                 return
 
             try:
-                db.insert_item(nsn, name, price, stock)  # 👈 db에 nsn도 함께 전달
+                db.insert_item(nsn, name, price, stock)
                 QMessageBox.information(self, "성공", "신규 물자가 등록되었습니다.")
                 self.load_data()
             except Exception as e:
@@ -181,9 +316,7 @@ class DelisMainWindow(QMainWindow):
 
         dialog = ItemDialog(mode='update', item_data=(nsn, name, price, stock), parent=self)
 
-        # 💡 [추가] 다이얼로그 내부에 생성된 '삭제' 버튼 클릭 시 실행될 내부 함수
         def handle_dialog_delete():
-            # 1차 확인창 (정말 삭제할 것인지 묻기)
             reply = QMessageBox.question(
                 dialog, 
                 "삭제 확인", 
@@ -194,28 +327,21 @@ class DelisMainWindow(QMainWindow):
             
             if reply == QMessageBox.Yes:
                 try:
-                    # db 모듈의 삭제 함수 호출 (※ db.py에 delete_item 함수가 있어야 합니다)
                     db.delete_item(nsn)
                     QMessageBox.information(dialog, "삭제 완료", "물자가 완전히 삭제되었습니다.")
-                    dialog.accept()  # 다이얼로그 창 닫기
-                    self.load_data() # 메인 화면 목록 새로고침
+                    dialog.accept()
+                    self.load_data()
                 except Exception as e:
                     QMessageBox.critical(dialog, "DB 오류", f"삭제 실패:\n{str(e)}")
 
-        # update 모드일 때만 삭제 버튼 시그널 연결
         if dialog.mode == 'update':
             dialog.btn_delete.clicked.connect(handle_dialog_delete)
 
-        # 다이얼로그 실행 및 일반 수정(저장) 처리
         if dialog.exec_() == QDialog.Accepted:
-            # 삭제 버튼을 눌러서 이미 창이 닫힌 경우(accept된 경우) 수정 로직을 타지 않도록 방어 코드 추가
-            # (삭제 시 dialog.accept()를 호출했으므로, DB에 해당 nsn이 여전히 존재하는지 체크하거나 분기할 수 있습니다)
             try:
-                # 만약 방금 삭제된 상태가 아니라면 일반 수정 로직 진행
-                # (삭제 후에는 다이얼로그가 닫히므로 get_data() 호출 시 예외가 안 나도록 간단히 체크)
                 new_name, price_str, stock_str = dialog.get_data()
             except Exception:
-                return  # 삭제로 인해 다이얼로그가 닫힌 경우 무시
+                return
 
             if not new_name or not price_str or not stock_str:
                 return
@@ -232,6 +358,7 @@ class DelisMainWindow(QMainWindow):
                 self.load_data()
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", f"수정 실패:\n{str(e)}")
+
     def delete_item_action(self):
         """선택한 물자의 특정 수량 소모 처리"""
         selected_row = self.table.currentRow()
@@ -261,19 +388,6 @@ class DelisMainWindow(QMainWindow):
                 self.load_data()
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", str(e))
-
-#  숫자 데이터에 , 적용하려고 문자열 형식으로 변환하니 오름차순 내림차순 시 비정상 작동하는걸 교정하기 위함
-class NumericTableWidgetItem(QTableWidgetItem):
-    """콤마가 포함된 숫자 문자열을 올바르게 정렬하기 위한 커스텀 아이템"""
-    def __lt__(self, other):
-        try:
-            # 콤마 제거 후 숫자로 변환하여 대소 비교
-            self_val = float(self.text().replace(',', ''))
-            other_val = float(other.text().replace(',', ''))
-            return self_val < other_val
-        except ValueError:
-            # 숫자로 변환할 수 없는 경우 기본 문자열 비교 수행
-            return super().__lt__(other)
 
 
 if __name__ == '__main__':
