@@ -245,7 +245,11 @@ class DelisMainWindow(QMainWindow):
                 header.setSectionResizeMode(2, QHeaderView.ResizeToContents)
                 header.setSectionResizeMode(3, QHeaderView.ResizeToContents)
 
-                self.statusBar().showMessage(f"검색 완료: 총 {len(result)}건이 조회되었습니다.")
+                search_count = len(result)
+                if self.user_id == '1234':
+                    self.statusBar().showMessage(f"[관리자 계정]으로 접속 중입니다. | 검색 결과: {search_count}건")
+                else:
+                    self.statusBar().showMessage(f"일반 사용자 ({self.user_id}) 접속 중 | 검색 결과: {search_count}건")
 
             except Exception as e:
                 QMessageBox.critical(self, "DB 오류", f"검색 실패:\n{str(e)}")
