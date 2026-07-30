@@ -124,13 +124,28 @@ def check_login(user_id, password):
     conn.close()
     return result
 
-def insert_items_bulk(item_list):
-    """엑셀에서 읽어온 튜플 리스트를 받아 한 번에 DB에 대량 등록 (NSN 포함)"""
+def insert_items_bulk(item_list, user_id="admin"):
+    """엑셀에서 읽어온 튜플 리스트를 받아 DB에 대량 등록
+    (이미 존재하는 NSN은 수량 합산 및 정보 업데이트 + 이력 남기기)
+    """
     conn = get_connection()
     with conn.cursor() as cursor:
-        query = "INSERT INTO item (nsn, name, price, stock) VALUES (%s, %s, %s, %s);"
+        query = """
+            INSERT INTO item (nsn, name, price, stock) 
+            VALUES (%s, %s, %s, %s)
+            ON DUPLICATE KEY UPDATE 
+                name = VALUES(name),
+                price = VALUES(price),
+                stock = stock + VALUES(stock);
+        """
         cursor.executemany(query, item_list)
         conn.commit()
+
+        # 대량 등록 작업 이력 기록
+        for item in item_list:
+            nsn, name, price, stock = item[0], item[1], item[2], int(item[3])
+            log_history(user_id, nsn, name, "엑셀등록", stock, stock)
+
     conn.close()
 
 def delete_item(nsn):
@@ -164,3 +179,38 @@ try:
     init_history_db()
 except Exception as e:
     print(f"history 테이블 생성/확인 실패: {e}")
+
+
+def get_dashboard_summary():
+    """대시보드 상단 요약 카드 데이터 (총 품목 수, 총 자산 가치, 부족 재고 수)"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        # 1. 총 품목 수, 총 자산 가치 (단가 * 수량)
+        cursor.execute("SELECT COUNT(*), IFNULL(SUM(price * stock), 0) FROM item;")
+        total_count, total_value = cursor.fetchone()
+
+        # 2. 안전재고 미달 품목 수 (예: 보유 수량 10개 이하)
+        cursor.execute("SELECT COUNT(*) FROM item WHERE stock <= 10;")
+        low_stock_count = cursor.fetchone()[0]
+
+    conn.close()
+    return total_count, total_value, low_stock_count
+
+
+def get_top_consumed_items(limit=5):
+    """가장 많이 소모된 물자 Top N 조회"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        # action_type이 '소모처리'인 항목 중 가장 많이 소모된 물자 합산
+        query = """
+            SELECT item_name, ABS(SUM(qty_change)) AS total_consumed
+            FROM history
+            WHERE action_type = '소모처리'
+            GROUP BY item_name
+            ORDER BY total_consumed DESC
+            LIMIT %s;
+        """
+        cursor.execute(query, (limit,))
+        result = cursor.fetchall()
+    conn.close()
+    return result

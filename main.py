@@ -5,15 +5,9 @@ from PyQt5.QtWidgets import (
 
 from login_dialog import LoginDialog
 from InventoryTab import InventoryTab
-from HistoryTab import HistoryTab 
+from HistoryTab import HistoryTab
+from DashboardTab import DashboardTab
 
-
-class DashboardTab(QWidget):
-    """3번 탭: 통계 대시보드 (Step 3 예정)"""
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("📊 대시보드 및 통계 차트 화면 (Step 3에서 구현 예정)"))
 
 
 class DelisMainWindow(QMainWindow):
