@@ -18,6 +18,51 @@ def get_connection():
         charset='utf8mb4'
     )
 
+def init_history_db():
+    """이력 테이블이 없으면 생성 (MySQL 버전)"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS history (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                user_id VARCHAR(50),
+                nsn VARCHAR(50),
+                item_name VARCHAR(100),
+                action_type VARCHAR(20),
+                qty_change INT,
+                current_stock INT
+            );
+        ''')
+        conn.commit()
+    conn.close()
+
+def log_history(user_id, nsn, item_name, action_type, qty_change, current_stock):
+    """작업 이력 남기기"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        query = """
+            INSERT INTO history (user_id, nsn, item_name, action_type, qty_change, current_stock)
+            VALUES (%s, %s, %s, %s, %s, %s);
+        """
+        cursor.execute(query, (user_id, nsn, item_name, action_type, qty_change, current_stock))
+        conn.commit()
+    conn.close()
+
+def get_all_history():
+    """모든 이력 조회 (최신순)"""
+    conn = get_connection()
+    with conn.cursor() as cursor:
+        query = """
+            SELECT timestamp, user_id, nsn, item_name, action_type, qty_change, current_stock
+            FROM history
+            ORDER BY id DESC;
+        """
+        cursor.execute(query)
+        result = cursor.fetchall()
+    conn.close()
+    return result
+
 def get_all_items():
     """재고 목록 전체 조회 (Read)"""
     conn = get_connection()
@@ -27,26 +72,24 @@ def get_all_items():
     conn.close()
     return result
 
-def insert_item(name, price, stock):
-    """신규 물자 추가 (Create)"""
+def insert_item(nsn, name, price, stock):
+    """신규 물자 추가 (Create) - nsn 포함 수정"""
     conn = get_connection()
     with conn.cursor() as cursor:
-        query = "INSERT INTO item (name, price, stock) VALUES (%s, %s, %s);"
-        cursor.execute(query, (name, price, stock))
+        query = "INSERT INTO item (nsn, name, price, stock) VALUES (%s, %s, %s, %s);"
+        cursor.execute(query, (nsn, name, price, stock))
         conn.commit()
     conn.close()
 
 def update_item(nsn, name, price, stock):
     conn = get_connection()
-    cursor = conn.cursor()
-    
-    cursor.execute("""
-        UPDATE item 
-        SET name = %s, price = %s, stock = %s 
-        WHERE nsn = %s
-    """, (name, price, stock, nsn))
-    
-    conn.commit()
+    with conn.cursor() as cursor:
+        cursor.execute("""
+            UPDATE item 
+            SET name = %s, price = %s, stock = %s 
+            WHERE nsn = %s
+        """, (name, price, stock, nsn))
+        conn.commit()
     conn.close()
 
 def consume_stock(nsn, consume_qty):
@@ -79,13 +122,12 @@ def check_login(user_id, password):
         cursor.execute(query, (user_id, password))
         result = cursor.fetchone()
     conn.close()
-    return result  # 일치하는 계정이 있으면 이름 반환, 없으면 None
+    return result
 
 def insert_items_bulk(item_list):
     """엑셀에서 읽어온 튜플 리스트를 받아 한 번에 DB에 대량 등록 (NSN 포함)"""
     conn = get_connection()
     with conn.cursor() as cursor:
-        # 👈 [수정] nsn을 포함하여 4개의 컬럼을 한 번에 삽입하도록 수정
         query = "INSERT INTO item (nsn, name, price, stock) VALUES (%s, %s, %s, %s);"
         cursor.executemany(query, item_list)
         conn.commit()
@@ -116,3 +158,9 @@ def search_items(nsn_keyword, name_keyword):
         result = cursor.fetchall()
     conn.close()
     return result
+
+# 모듈 로드 시 history 테이블 자동 생성
+try:
+    init_history_db()
+except Exception as e:
+    print(f"history 테이블 생성/확인 실패: {e}")
