@@ -346,7 +346,7 @@ class DelisMainWindow(QMainWindow):
 
         if dialog.exec_() == QDialog.Accepted:
             try:
-                # 💡 4개의 값(재고번호, 품명, 단가, 수량)만 언패킹합니다.
+                # 4개의 값(재고번호, 품명, 단가, 수량)만 언패킹
                 nsn, new_name, price_str, stock_str = dialog.get_data()
             except Exception:
                 return
@@ -362,53 +362,8 @@ class DelisMainWindow(QMainWindow):
                 return
 
             try:
-                # 💡 db.update_item에 original_nsn과 변경된 값 3개를 포함하여 총 4개의 인자만 전달합니다.
+                # original_nsn과 변경된 값 3개를 포함하여 총 4개의 인자만 전달
                 db.update_item(original_nsn, new_name, new_price, new_stock)
-                QMessageBox.information(self, "성공", "물자 정보가 수정되었습니다.")
-                self.load_data()
-            except Exception as e:
-                QMessageBox.critical(self, "DB 오류", f"수정 실패:\n{str(e)}")
-                
-        def handle_dialog_delete():
-            reply = QMessageBox.question(
-                dialog, 
-                "삭제 확인", 
-                f"'{name}' ({original_nsn}) 물자를 완전히 삭제하시겠습니까?",
-                QMessageBox.Yes | QMessageBox.No, 
-                QMessageBox.No
-            )
-            
-            if reply == QMessageBox.Yes:
-                try:
-                    db.delete_item(original_nsn)
-                    QMessageBox.information(dialog, "삭제 완료", "물자가 완전히 삭제되었습니다.")
-                    dialog.accept()
-                    self.load_data()
-                except Exception as e:
-                    QMessageBox.critical(dialog, "DB 오류", f"삭제 실패:\n{str(e)}")
-
-        if dialog.mode == 'update':
-            dialog.btn_delete.clicked.connect(handle_dialog_delete)
-
-        if dialog.exec_() == QDialog.Accepted:
-            try:
-                new_nsn, new_name, price_str, stock_str = dialog.get_data()
-            except Exception:
-                return
-
-            if not new_nsn or not new_name or not price_str or not stock_str:
-                QMessageBox.warning(self, "경고", "모든 항목을 입력해주세요.")
-                return
-
-            try:
-                new_price, new_stock = int(price_str), int(stock_str)
-            except ValueError:
-                QMessageBox.warning(self, "경고", "단가와 수량은 숫자만 입력 가능합니다.")
-                return
-
-            try:
-                # 재고번호, 품명, 단가 수정 반영 (original_nsn을 기준으로 DB 갱신)
-                db.update_item(original_nsn, new_nsn, new_name, new_price, new_stock)
                 QMessageBox.information(self, "성공", "물자 정보가 수정되었습니다.")
                 self.load_data()
             except Exception as e:

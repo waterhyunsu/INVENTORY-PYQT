@@ -41,10 +41,10 @@ def update_item(nsn, name, price, stock):
     cursor = conn.cursor()
     
     cursor.execute("""
-        UPDATE items 
-        SET name = ?, price = ?, stock = ? 
-        WHERE nsn = ?
-    """, (name, price, stock, nsn)) # 👈 전달하는 값도 정확히 4개(name, price, stock, nsn)여야 합니다.
+        UPDATE item 
+        SET name = %s, price = %s, stock = %s 
+        WHERE nsn = %s
+    """, (name, price, stock, nsn))
     
     conn.commit()
     conn.close()
