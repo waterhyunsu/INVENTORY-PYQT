@@ -119,7 +119,7 @@ class DashboardTab(QWidget):
             # 막대 그래프 (Top 5 소모 수량)
             bars = ax.barh(items, counts, color='#2B579A')
             ax.invert_yaxis()  # 최상위 항목이 맨 위에 오도록 뒤집기
-            ax.set_title("🔥 누적 소모량 Top 5 물자", fontsize=14, fontweight='bold', pad=15)
+            ax.set_title("누적 소모량 Top 5 물자", fontsize=14, fontweight='bold', pad=15)
             ax.set_xlabel("소모 수량 (EA)", fontsize=10)
 
             # 수량 레이블 막대 끝에 표시
